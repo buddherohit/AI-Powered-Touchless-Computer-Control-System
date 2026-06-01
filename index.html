@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Aura AR - Cybernetic Experience</title>
+    
+    <!-- Google Fonts for Futuristic Look -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- MediaPipe Hands CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <!-- Custom Separated Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- SVG Neon Glow Multi-Blur Filter (injected to enable intense canvas lighting) -->
+    <svg style="position: absolute; width: 0; height: 0;">
+        <defs>
+            <filter id="neon-bloom" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="8" result="blur1"/>
+                <feGaussianBlur stdDeviation="15" result="blur2"/>
+                <feMerge>
+                    <feMergeNode in="blur2"/>
+                    <feMergeNode in="blur1"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- Start Overlay (Synthesizer & Audio activation splash) -->
+    <div id="startOverlay">
+        <div class="scan-grid"></div>
+        <div class="scan-line"></div>
+        <div class="splash-card">
+            <div class="splash-title-container">
+                <h1 class="splash-title">Neon Aura AR</h1>
+                <div class="splash-title-shadow">Neon Aura AR</div>
+            </div>
+            <p class="splash-subtitle">Interactive WebAR Synthesizer</p>
+            
+            <div class="terminal-panel" id="diagTerminal">
+                <!-- Javascript will load interactive diagnostics log -->
+                <div class="terminal-line"><span class="terminal-prompt">&gt;</span><span class="terminal-text" id="log-line">Press ENTER to boot system.</span></div>
+            </div>
+
+            <button class="start-btn" id="startBtn">Boot AR System</button>
+        </div>
+    </div>
+
+    <!-- Camera / Canvas Viewport -->
+    <div class="video-container">
+        <video class="input_video" autoplay playsinline></video>
+        <canvas id="bgCanvas"></canvas>
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <!-- Active dynamic ambient glow mapping to hand colors -->
+    <div class="ambient-glow" id="leftAura"></div>
+    <div class="ambient-glow" id="rightAura"></div>
+
+    <!-- Dynamic Diagnostics HUD Overlay -->
+    <div id="hud" class="hidden">
+        <div class="panel">
+            <div class="hud-header">
+                <div class="hud-dot"></div>
+                <div class="hud-title">System Diagnostics</div>
+            </div>
+            <div class="stat">AR Framework FPS: <span class="val" id="ui-fps">0</span></div>
+            <div class="stat">Neural Trackers: <span class="val" id="ui-hands">0</span></div>
+        </div>
+        <div class="panel">
+            <div class="hud-header">
+                <div class="hud-dot" style="background-color: var(--pink); box-shadow: 0 0 10px var(--pink);"></div>
+                <div class="hud-title">Hand Telemetry</div>
+            </div>
+            <div class="stat">Primary Gesture: <span class="val" id="ui-gesture">None</span></div>
+            <div class="stat">Finger Spread: <span class="val" id="ui-spread">0%</span></div>
+        </div>
+    </div>
+
+    <!-- Draggable Holographic Control Panel -->
+    <div id="controlPanel" class="panel hidden">
+        <div class="panel-header-drag" id="dragHeader">
+            <div class="panel-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="color: var(--accent);">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                    <polyline points="2 17 12 22 22 17"></polyline>
+                    <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+                Core Settings
+            </div>
+            <div class="panel-drag-icon">⋮⋮</div>
+        </div>
+
+        <div class="control-group">
+            <div class="switch-container">
+                <span>Matrix Background</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleMatrix" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="switch-container">
+                <span>Sparks Aura</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleSparks" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="switch-container">
+                <span>Inter-Hand Arcs</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleArcs" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="switch-container">
+                <span>Sacred Mandala</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleMandala" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="switch-container">
+                <span>Audio Synth</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggleAudio">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="range-container">
+            <div class="range-label-container">
+                <span>Gesture Sensitivity</span>
+                <span id="sensitivityVal" style="color: var(--accent); font-family: monospace;">0.05</span>
+            </div>
+            <input type="range" class="range-slider" id="pinchSensitivity" min="0.03" max="0.10" step="0.01" value="0.05">
+        </div>
+
+        <!-- Telemetry Oscilloscope Visualization -->
+        <div class="visualizer-container">
+            <canvas id="synthVisualizer"></canvas>
+        </div>
+    </div>
+
+    <!-- Horizontal Color Theme Selection Bar -->
+    <div id="themes" class="hidden">
+        <button class="theme-btn active" data-theme="Rainbow">Rainbow</button>
+        <button class="theme-btn" data-theme="Cyberpunk">Cyberpunk</button>
+        <button class="theme-btn" data-theme="Lava">Lava</button>
+        <button class="theme-btn" data-theme="Ocean">Ocean</button>
+        <button class="theme-btn" data-theme="Galaxy">Galaxy</button>
+    </div>
+
+    <!-- Error Fallback Card -->
+    <div id="errorOverlay" class="none">
+        <div class="error-card">
+            <div class="error-icon">⚠</div>
+            <h2 class="error-title">AR Feed Blocked</h2>
+            <p class="error-desc" id="errorMsg">The application requires camera permissions to detect hands and synthesize neon audio waves. Please ensure camera access is enabled in browser settings.</p>
+            <button class="retry-btn" onclick="location.reload()">Reinitialize System</button>
+        </div>
+    </div>
+
+    <!-- Custom Separated JavaScript Logic -->
+    <script src="app.js" defer></script>
+</body>
+</html>
